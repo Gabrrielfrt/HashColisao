@@ -1,0 +1,237 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define TAMANHO_HASH 10
+
+// Estrutura para representar um filme
+typedef struct {
+    int id;               // ID único do filme
+    char genero[50];      // Gênero do filme
+    char data[50];        // Data de lançamento do filme
+    char temp_vis[20];    // Tempo de visualização do filme
+    char av_user[5];      // Avaliação do usuário
+    char nome[50];        // Nome do filme
+    int ocupada;          // Flag para indicar se o slot está ocupado
+} Filme;
+
+// Estrutura da Tabela Hash
+typedef struct {
+    Filme tabela[TAMANHO_HASH];  // Array de filmes
+} TabelaHash;
+
+// Função Hash: Retorna o índice baseado no ID do filme
+int funcao_hash(int id) {
+    return id % TAMANHO_HASH;  // Usa módulo para determinar a posição na tabela
+}
+
+// Função hash para duplo hashing
+int hash2(int id) {
+    return 7 - (id % 7);  // Segunda função hash para duplo hashing
+}
+
+// Função para criar um novo filme
+Filme criar_filme(int id, const char *nome, const char *genero, const char *data, const char *temp_vis, const char *av_user) {
+    Filme novo_filme;
+    novo_filme.id = id;
+    strcpy(novo_filme.nome, nome);
+    strcpy(novo_filme.genero, genero);
+    strcpy(novo_filme.data, data);
+    strcpy(novo_filme.temp_vis, temp_vis);
+    strcpy(novo_filme.av_user, av_user);
+    novo_filme.ocupada = 1;  // Marca o slot como ocupado
+    return novo_filme;
+}
+
+// Sondagem linear
+int sondagem_linear(TabelaHash *tabela, int id) {
+    int indice = funcao_hash(id);
+    int tentativas = 0;
+
+    while (tabela->tabela[indice].ocupada && tentativas < TAMANHO_HASH) {
+        indice = (indice + 1) % TAMANHO_HASH;  // Avança linearmente
+        tentativas++;
+    }
+
+    return (tentativas < TAMANHO_HASH) ? indice : -1;  // Retorna o índice ou -1 se a tabela estiver cheia
+}
+
+// Sondagem quadrática
+int sondagem_quadratica(TabelaHash *tabela, int id) {
+    int indice = funcao_hash(id);
+    int i = 1;
+    int tentativas = 0;
+
+    while (tabela->tabela[indice].ocupada && tentativas < TAMANHO_HASH) {
+        indice = (funcao_hash(id) + i * i) % TAMANHO_HASH;  // Avança quadraticamente
+        i++;
+        tentativas++;
+    }
+
+    return (tentativas < TAMANHO_HASH) ? indice : -1;  // Retorna o índice ou -1 se a tabela estiver cheia
+}
+
+// Duplo hashing
+int duplo_hashing(TabelaHash *tabela, int id) {
+    int indice = funcao_hash(id);
+    int step = hash2(id);
+    int tentativas = 0;
+
+    while (tabela->tabela[indice].ocupada && tentativas < TAMANHO_HASH) {
+        indice = (indice + step) % TAMANHO_HASH;  // Usa duplo hashing
+        tentativas++;
+    }
+
+    return (tentativas < TAMANHO_HASH) ? indice : -1;  // Retorna o índice ou -1 se a tabela estiver cheia
+}
+
+// Função para inserir um filme na tabela hash usando sondagem linear
+void inserir_linear(TabelaHash *tabela, Filme filme) {
+    int indice = funcao_hash(filme.id);
+
+    // Se não houver colisão, insere diretamente
+    if (!tabela->tabela[indice].ocupada) {
+        tabela->tabela[indice] = filme;
+    } else {
+        // Se houver colisão, chama a sondagem linear
+        int novo_indice = sondagem_linear(tabela, filme.id);
+        if (novo_indice != -1) {
+            tabela->tabela[novo_indice] = filme;
+        } else {
+            printf("Erro: Tabela hash está cheia.\n");
+        }
+    }
+}
+
+// Função para inserir um filme na tabela hash usando sondagem quadrática
+void inserir_quadratica(TabelaHash *tabela, Filme filme) {
+    int indice = funcao_hash(filme.id);
+
+    // Se não houver colisão, insere diretamente
+    if (!tabela->tabela[indice].ocupada) {
+        tabela->tabela[indice] = filme;
+    } else {
+        // Se houver colisão, chama a sondagem quadrática
+        int novo_indice = sondagem_quadratica(tabela, filme.id);
+        if (novo_indice != -1) {
+            tabela->tabela[novo_indice] = filme;
+        } else {
+            printf("Erro: Tabela hash está cheia.\n");
+        }
+    }
+}
+
+// Função para inserir um filme na tabela hash usando duplo hashing
+void inserir_duplo_hashing(TabelaHash *tabela, Filme filme) {
+    int indice = funcao_hash(filme.id);
+
+    // Se não houver colisão, insere diretamente
+    if (!tabela->tabela[indice].ocupada) {
+        tabela->tabela[indice] = filme;
+    } else {
+        // Se houver colisão, chama o duplo hashing
+        int novo_indice = duplo_hashing(tabela, filme.id);
+        if (novo_indice != -1) {
+            tabela->tabela[novo_indice] = filme;
+        } else {
+            printf("Erro: Tabela hash está cheia.\n");
+        }
+    }
+}
+
+// Função para buscar um filme pelo ID
+Filme* buscar_filme(TabelaHash *tabela, int id) {
+    int indice = funcao_hash(id);
+    int tentativas = 0;
+
+    while (tabela->tabela[indice].ocupada && tentativas < TAMANHO_HASH) {
+        if (tabela->tabela[indice].id == id) {
+            return &tabela->tabela[indice];  // Retorna o ponteiro para o filme encontrado
+        }
+        indice = (indice + 1) % TAMANHO_HASH;  // Avança linearmente
+        tentativas++;
+    }
+
+    return NULL;  // Retorna NULL se não encontrar o filme
+}
+
+// Função para remover um filme pelo ID
+int remover_filme(TabelaHash *tabela, int id) {
+    int indice = funcao_hash(id);
+    int tentativas = 0;
+
+    while (tabela->tabela[indice].ocupada && tentativas < TAMANHO_HASH) {
+        if (tabela->tabela[indice].id == id) {
+            tabela->tabela[indice].ocupada = 0;  // Marca como desocupado
+            return 1;  // Retorna 1 se o filme foi removido com sucesso
+        }
+        indice = (indice + 1) % TAMANHO_HASH;  // Avança linearmente
+        tentativas++;
+    }
+
+    return 0;  // Retorna 0 se não encontrar o filme
+}
+
+// Função para exibir todos os filmes
+void exibir_todos(TabelaHash *tabela) {
+    for (int i = 0; i < TAMANHO_HASH; i++) {
+        if (tabela->tabela[i].ocupada) {
+            printf("Filme ID: %d, Nome: %s, Gênero: %s, Data: %s, Tempo de Visualização: %s, Avaliação: %s (Índice: %d)\n",
+                   tabela->tabela[i].id, tabela->tabela[i].nome, tabela->tabela[i].genero,
+                   tabela->tabela[i].data, tabela->tabela[i].temp_vis, tabela->tabela[i].av_user, i);
+        }
+    }
+}
+
+// Função principal para demonstrar o uso da tabela hash com filmes
+int main() {
+    // Inicializa a tabela hash
+    TabelaHash tabela = {0};  // Todos os slots começam desocupados
+
+    // Inserir filmes na tabela hash usando sondagem linear
+    inserir_linear(&tabela, criar_filme(1, "O Poderoso Chefão", "Crime", "24/03/1972", "2h 55m", "9.2"));
+    inserir_linear(&tabela, criar_filme(2, "A Lista de Schindler", "Drama", "30/11/1993", "3h 15m", "8.9"));
+    
+    // Inserir filmes na tabela hash usando sondagem quadrática
+    TabelaHash tabela_quadratica = {0};  // Nova tabela para sondagem quadrática
+    inserir_quadratica(&tabela_quadratica, criar_filme(3, "O Senhor dos Anéis: O Retorno do Rei", "Fantasia", "17/12/2003", "3h 21m", "9.0"));
+    inserir_quadratica(&tabela_quadratica, criar_filme(4, "Pulp Fiction", "Crime", "14/10/1994", "2h 34m", "8.9"));
+
+    // Inserir filmes na tabela hash usando duplo hashing
+    TabelaHash tabela_duplo = {0};  // Nova tabela para duplo hashing
+    inserir_duplo_hashing(&tabela_duplo, criar_filme(5, "Forrest Gump", "Drama", "06/07/1994", "2h 22m", "8.8"));
+    inserir_duplo_hashing(&tabela_duplo, criar_filme(6, "Cidadão Kane", "Drama", "01/05/1941", "1h 40m", "8.6"));
+
+    // Exibir todos os filmes
+    printf("Filmes com Sondagem Linear:\n");
+    exibir_todos(&tabela);
+    
+    printf("\nFilmes com Sondagem Quadrática:\n");
+    exibir_todos(&tabela_quadratica);
+    
+    printf("\nFilmes com Duplo Hashing:\n");
+    exibir_todos(&tabela_duplo);
+
+    // Buscar um filme
+    int id_busca = 2;
+    Filme *filme_encontrado = buscar_filme(&tabela, id_busca);
+    if (filme_encontrado) {
+        printf("\nFilme encontrado: %s\n", filme_encontrado->nome);
+    } else {
+        printf("\nFilme com ID %d não encontrado.\n", id_busca);
+    }
+
+    // Remover um filme
+    int id_remocao = 1;
+    if (remover_filme(&tabela, id_remocao)) {
+        printf("\nFilme com ID %d removido com sucesso.\n", id_remocao);
+    } else {
+        printf("\nFilme com ID %d não encontrado para remoção.\n", id_remocao);
+    }
+
+    // Exibir todos os filmes após remoção
+    printf("\nFilmes após remoção:\n");
+    exibir_todos(&tabela);
+
+    return 0;
+}
